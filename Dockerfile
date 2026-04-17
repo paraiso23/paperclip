@@ -54,6 +54,15 @@ RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/cod
   && mkdir -p /paperclip \
   && chown node:node /paperclip
 
+# Install Tailscale binaries
+RUN ARCH=$(dpkg --print-architecture | sed 's/aarch64/arm64/;s/x86_64/amd64/') \
+  && curl -fsSL "https://pkgs.tailscale.com/stable/tailscale_latest_${ARCH}.tgz" -o /tmp/tailscale.tgz \
+  && tar xzf /tmp/tailscale.tgz -C /tmp \
+  && mv /tmp/tailscale_*/tailscale /usr/local/bin/ \
+  && mv /tmp/tailscale_*/tailscaled /usr/local/bin/ \
+  && chmod +x /usr/local/bin/tailscale /usr/local/bin/tailscaled \
+  && rm -rf /tmp/tailscale*
+
 COPY scripts/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
