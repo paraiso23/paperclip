@@ -20,6 +20,25 @@ fi
 # Always ensure /paperclip is owned by node (handles DO App Platform ephemeral FS)
 chown -R node:node /paperclip
 
+# Start Tailscale if TS_AUTHKEY is provided
+if [ -n "$TS_AUTHKEY" ]; then
+    echo "[tailscale] Starting tailscaled (userspace networking)..."
+    mkdir -p /tmp/tailscale-state
+    tailscaled --tun=userspace-networking --statedir=/tmp/tailscale-state --socket=/tmp/tailscale.sock >/tmp/tailscaled.log 2>&1 &
+    TAILSCALED_PID=$!
+    echo "[tailscale] tailscaled PID: $TAILSCALED_PID"
+    sleep 3
+    TS_HOSTNAME="${TS_HOSTNAME:-paperclip}"
+    echo "[tailscale] Connecting as hostname: $TS_HOSTNAME"
+    tailscale --socket=/tmp/tailscale.sock up \
+        --authkey="$TS_AUTHKEY" \
+        --hostname="$TS_HOSTNAME" \
+        --accept-routes \
+        --timeout=30s \
+    && echo "[tailscale] Connected! IP: $(tailscale --socket=/tmp/tailscale.sock ip -4 2>/dev/null || echo 'pending')" \
+    || echo "[tailscale] WARNING: tailscale up failed — continuing without Tailscale"
+fi
+
 # Auto-generate config.json from env vars if missing or in wrong deployment mode
 CONFIG_FILE="${PAPERCLIP_CONFIG:-/paperclip/instances/default/config.json}"
 CONFIG_DIR=$(dirname "$CONFIG_FILE")
@@ -87,4 +106,3 @@ CONFIGEOF
 fi
 
 exec gosu node "$@"
-
